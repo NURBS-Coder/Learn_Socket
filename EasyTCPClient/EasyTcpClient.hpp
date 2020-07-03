@@ -17,14 +17,24 @@ using namespace std;
 
 #include "MessageHeader.hpp"
 
+#ifndef RECV_BUFF_SIZE
+	#define RECV_BUFF_SIZE 1024*40		//接收缓冲区最小单元大小 40kb
+#endif
+
 class EasyTcpClient
 {
 private:
-	SOCKET _sock;				//服务器socket
+	SOCKET _sock;							//服务器socket
+	char _szRecv[RECV_BUFF_SIZE];			//接收缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE * 10];	//第二缓冲区、消息缓冲区
+	int _lastPos;							//记录第二缓冲区中数据位置
 public:
 	EasyTcpClient()
 	{
 		_sock = INVALID_SOCKET;
+		memset(_szRecv,0,RECV_BUFF_SIZE);
+		memset(_szMsgBuf,0,RECV_BUFF_SIZE * 10);
+		_lastPos = 0;
 	}
 
 	//虚析构函数
@@ -91,7 +101,7 @@ public:
 		return ret;
 	}
 
-	//关闭服务器
+	//关闭客户端
 	void Close()
 	{
 		if (_sock != INVALID_SOCKET)
@@ -121,29 +131,9 @@ public:
 	//接收数据 (处理粘包、拆包等)
 	int RecvData()
 	{
-		//// 6.recv 接收服务器返回的数据
-		////接收缓冲区
-		//char szRecv[1024] = {};
-		////接收包头
-		//int nLen = recv(_sock, szRecv, sizeof(DataHeader), 0);
-		//DataHeader* header = (DataHeader*)szRecv;
-		//if (nLen <= 0)
-		//{
-		//	printf("socket = <%d>与服务器断开连接，任务结束。\n",_sock);
-		//	return -1;
-		//}
-		////接收包体：前面收过一个DataHeader的长度，后续数据需偏移
-		//recv(_sock, szRecv + sizeof(DataHeader), header->dataLength - sizeof(DataHeader), 0);
-		//OnNetMsg(header);
-		//return 0;
-
 		// 6.recv 接收服务器返回的数据
-		//接收缓冲区
-		char _szRecv[1024] = {};
-		char _szMsgBuf[10240] = {};
-		int _lastPos;
 		//接收数据
-		int nLen = recv(_sock, _szRecv, 1024, 0);
+		int nLen = recv(_sock, _szRecv, RECV_BUFF_SIZE, 0);
 		if (nLen <= 0)
 		{
 			printf("socket = <%d>与服务器断开连接，任务结束。\n",_sock);
@@ -151,22 +141,22 @@ public:
 		}
 		//将收取的数据拷贝到消息缓冲区
 		memcpy(_szMsgBuf+_lastPos,_szRecv, nLen);
-		//消息缓冲区数据位置后移
+		//消息缓冲区数据尾部位置后移
 		_lastPos += nLen;
-		//判断数据长度大于数据头
-		while (_lastPos >= sizeof(DataHeader))
+		//判断数据长度大于数据头长度
+		while (_lastPos >= sizeof(DataHeader))			//循环处理黏包，一次收到大量数据，循环分割全部处理
 		{
-			DataHeader* header = (DataHeader*)_szRecv;
+			DataHeader* header = (DataHeader*)_szMsgBuf;   
 			//判断消息缓冲区大小大于消息长度
-			if (_lastPos >= header->dataLength)
+			if (_lastPos >= header->dataLength)			//判断处理少包，数据不够就等待下次数据接收
 			{
 				//消息缓冲区剩余数据长度
 				int nSize = _lastPos - header->dataLength;
 				//处理网络消息
 				OnNetMsg(header);
 				//将消息缓冲区未处理的数据前移
-				memcpy(_szMsgBuf, _szMsgBuf+header->dataLength, nSize);
-				//消息缓冲区数据位置后移
+				memcpy(_szMsgBuf, _szMsgBuf + header->dataLength, nSize);
+				//消息缓冲区数据位置前移
 				_lastPos = nSize;
 			}
 			else
@@ -186,15 +176,15 @@ public:
 		case CMD_LOGIN_RESULT:
 			{
 				LoginResult* loginRet = (LoginResult*)header;		//子类结构体直接由基类转化
-				printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d", _sock, loginRet->dataLength);
+				//printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d\n", _sock, loginRet->dataLength);
 				//返回的登陆结果
-				printf(" --> LoginResult：%d\n",loginRet->result);
+				//printf(" --> LoginResult：%d\n",loginRet->result);
 			}
 			break;
 		case CMD_LOGOUT_RESULT:
 			{
 				LogoutResult *logoutRet = (LogoutResult*)header;	//子类结构体直接由基类转化
-				printf("socket = <%d>收到服务器消息：CMD_LOGOUT_RESULT\t数据长度：%d", _sock, logoutRet->dataLength);
+				printf("socket = <%d>收到服务器消息：CMD_LOGOUT_RESULT\t数据长度：%d\n", _sock, logoutRet->dataLength);
 				//返回的登陆结果
 				printf(" --> LogoutResult：%d\n",logoutRet->result);
 			}
@@ -202,11 +192,15 @@ public:
 		case CMD_NEW_USER_JOIN:
 			{
 				NewUserJoin *newUserJoinRet = (NewUserJoin*)header;	//子类结构体直接由基类转化
-				printf("socket = <%d>收到服务器消息：CMD_NEW_USER_JOIN\t数据长度：%d", _sock, newUserJoinRet->dataLength);
+				printf("socket = <%d>收到服务器消息：CMD_NEW_USER_JOIN\t数据长度：%d\n", _sock, newUserJoinRet->dataLength);
 				//返回的登陆结果
 				printf(" --> NewUserJoin：<newSocket = %d>\n",newUserJoinRet->sock);
 			}
 			break;
+		default:
+			{
+				printf("socket = <%d>收到未定义消息\t数据长度：%d", _sock, header->dataLength);
+			}
 		}
 	}
 
@@ -246,7 +240,7 @@ public:
 
 		//空闲时间处理其他业务
 		//printf("空闲时间处理其他业务。。。\n");
-
+	
 		return true;
 	}
 
