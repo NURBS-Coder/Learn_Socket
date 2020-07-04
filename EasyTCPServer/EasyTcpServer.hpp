@@ -17,9 +17,10 @@ using namespace std;
 #include <vector>
 
 #include "MessageHeader.hpp"
+#include "CELLTimestamp.hpp"
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 1024*40		//接收缓冲区最小单元大小 40kb
+	#define RECV_BUFF_SIZE 1024*400		//接收缓冲区最小单元大小 40kb
 #endif
 				
 
@@ -58,7 +59,6 @@ private:
 	char _szMsgBuf[RECV_BUFF_SIZE * 10];	//第二缓冲区、消息缓冲区
 	int _lastPos;							//记录第二缓冲区中数据位置
 
-	
 };
 
 //new -> 堆内存    int等定义 -> 栈内存（小，只有几M）
@@ -68,12 +68,17 @@ private:
 	SOCKET _sock;						//服务器socket	
 	vector<ClientSocket*> _clients;		//动态数组：存客户端socket,用指针，在堆内存，防止栈内存不够
 	char _szRecv[RECV_BUFF_SIZE];		//接收缓冲区
+	CELLTimestamp _tTime;
+	int _recvCount;
+	int _recvBytes;
 
 public:
 	EasyTcpServer()
 	{
 		_sock = INVALID_SOCKET;
 		memset(_szRecv,0,RECV_BUFF_SIZE);
+		_recvCount = 0;
+		_recvBytes = 0;
 	}
 	virtual ~EasyTcpServer()
 	{
@@ -182,7 +187,25 @@ public:
 			//新客户端加入，群发他的socket
 			NewUserJoin newUserJoin;
 			newUserJoin.sock = cSock;
-			//SendData2All(&newUserJoin);
+			SendData2All(&newUserJoin);
+
+			//int nSendBuf,nRecvBuf;
+			//int len = sizeof(int);
+			//getsockopt(cSock,SOL_SOCKET, SO_SNDBUF,(char*)&nSendBuf, &len);
+			//getsockopt(cSock,SOL_SOCKET, SO_RCVBUF,(char*)&nRecvBuf, &len);
+			//cout << "SendBufSize = " << nSendBuf <<endl;
+			//cout << "SendBufSize = " << nRecvBuf <<endl;
+
+			////设置接收缓存大小
+			//nSendBuf = 1024 * 1024 * 10;
+			//setsockopt(cSock, SOL_SOCKET, SO_SNDBUF, (const char*)&nSendBuf, sizeof(int));
+			//nRecvBuf = 1024 * 1024 * 10;
+			//setsockopt(cSock, SOL_SOCKET, SO_RCVBUF, (const char*)&nRecvBuf, sizeof(int));
+			//getsockopt(cSock,SOL_SOCKET, SO_SNDBUF,(char*)&nSendBuf, &len);
+			//getsockopt(cSock,SOL_SOCKET, SO_RCVBUF,(char*)&nRecvBuf, &len);
+			//cout << "SendBufSize_Change = " << nSendBuf <<endl;
+			//cout << "SendBufSize_Change = " << nRecvBuf <<endl;
+
 			//新客户端加入vector
 			_clients.push_back(new ClientSocket(cSock));
 			printf("socket = <%d>有新客户端加入：socket= %d, IP= %s \n",_sock, cSock, inet_ntoa(clientAddr.sin_addr));
@@ -237,7 +260,6 @@ public:
 	//接收数据 (处理粘包、拆包等)
 	int RecvData(ClientSocket* pClient)
 	{
-
 		//接收包头
 		int nLen = recv(pClient->sockfd(), _szRecv, RECV_BUFF_SIZE, 0);
 		
@@ -280,6 +302,17 @@ public:
 	//响应网络消息
 	void OnNetMsg(SOCKET cSock, DataHeader* header)
 	{
+		_recvCount++;
+		_recvBytes += header->dataLength;
+		auto t1 = _tTime.getElapsedTimeInSecond();
+		if (t1 >= 1.0)
+		{
+			printf("time<%lf>,socket<%d>,recvCount<%d>,recvBytes<%d>\n",t1,cSock,_recvCount,_recvBytes);
+			_recvCount = 0;
+			_recvBytes = 0;
+			_tTime.update();
+		}
+
 		// 6.switch 处理请求 
 		// 7.send 向客户端返回请求数据
 		switch (header->cmd)
@@ -287,21 +320,21 @@ public:
 		case CMD_LOGIN:
 			{
 				Login* login = (Login*)header;
-				printf("socket = <%d>收到客户端<socket = %d>请求：CMD_LOGIN\t数据长度：%d\n",_sock, cSock,login->dataLength);
+				//printf("socket = <%d>收到客户端<socket = %d>请求：CMD_LOGIN\t数据长度：%d\n",_sock, cSock,login->dataLength);
 				//忽略判断用户名和密码
 				//printf(" --> 登陆：UserName=%s,PassWord=%s\n",login->userName,login->passWord);
 				//回复客户端登陆结果
 				LoginResult ret;
 				//发送数据包（包头+包体）
-				//SendData(cSock, &ret);
+				SendData(cSock, &ret);
 			}
 			break;
 		case CMD_LOGOUT:
 			{
 				Logout *logout = (Logout*)header;
-				printf("socket = <%d>收到客户端<socket = %d>请求：CMD_LOGOUT\t数据长度：%d\n",_sock, cSock,logout->dataLength);
+				//printf("socket = <%d>收到客户端<socket = %d>请求：CMD_LOGOUT\t数据长度：%d\n",_sock, cSock,logout->dataLength);
 				//忽略判断用户名
-				printf(" --> 登出：UserName=%s\n",logout->userName);
+				//printf(" --> 登出：UserName=%s\n",logout->userName);
 				//回复客户端登出结果
 				LogoutResult ret;
 				//发送包体（包头+包体）

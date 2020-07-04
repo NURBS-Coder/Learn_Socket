@@ -18,7 +18,7 @@ using namespace std;
 #include "MessageHeader.hpp"
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 1024*40		//接收缓冲区最小单元大小 40kb
+	#define RECV_BUFF_SIZE 1024*400		//接收缓冲区最小单元大小 40kb
 #endif
 
 class EasyTcpClient
@@ -98,6 +98,24 @@ public:
 		{
 			printf("socket = <%d>连接服务器<%s:%d>成功...\n", _sock, ip, port);
 		}
+
+		//int nSendBuf,nRecvBuf;
+		//int len = sizeof(int);
+		//getsockopt(_sock,SOL_SOCKET, SO_SNDBUF,(char*)&nSendBuf, &len);
+		//getsockopt(_sock,SOL_SOCKET, SO_RCVBUF,(char*)&nRecvBuf, &len);
+		//cout << "SendBufSize = " << nSendBuf <<endl;
+		//cout << "SendBufSize = " << nRecvBuf <<endl;
+
+		////设置接收缓存大小
+		//nSendBuf = 1024 * 1024 * 10;
+		//setsockopt(_sock, SOL_SOCKET, SO_SNDBUF, (const char*)&nSendBuf, sizeof(int));
+		//nRecvBuf = 1024 * 1024 * 10;
+		//setsockopt(_sock, SOL_SOCKET, SO_RCVBUF, (const char*)&nRecvBuf, sizeof(int));
+		//getsockopt(_sock,SOL_SOCKET, SO_SNDBUF,(char*)&nSendBuf, &len);
+		//getsockopt(_sock,SOL_SOCKET, SO_RCVBUF,(char*)&nRecvBuf, &len);
+		//cout << "SendBufSize_Change = " << nSendBuf <<endl;
+		//cout << "SendBufSize_Change = " << nRecvBuf <<endl;
+
 		return ret;
 	}
 
@@ -176,7 +194,7 @@ public:
 		case CMD_LOGIN_RESULT:
 			{
 				LoginResult* loginRet = (LoginResult*)header;		//子类结构体直接由基类转化
-				//printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d\n", _sock, loginRet->dataLength);
+				printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d\n", _sock, loginRet->dataLength);
 				//返回的登陆结果
 				//printf(" --> LoginResult：%d\n",loginRet->result);
 			}
@@ -186,7 +204,7 @@ public:
 				LogoutResult *logoutRet = (LogoutResult*)header;	//子类结构体直接由基类转化
 				printf("socket = <%d>收到服务器消息：CMD_LOGOUT_RESULT\t数据长度：%d\n", _sock, logoutRet->dataLength);
 				//返回的登陆结果
-				printf(" --> LogoutResult：%d\n",logoutRet->result);
+				//printf(" --> LogoutResult：%d\n",logoutRet->result);
 			}
 			break;
 		case CMD_NEW_USER_JOIN:
