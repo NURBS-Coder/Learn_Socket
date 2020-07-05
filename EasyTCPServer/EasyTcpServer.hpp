@@ -2,6 +2,8 @@
 #define _EasyTcpServer_hpp_
 
 #ifdef _WIN32
+	#define FD_SETSIZE      1024
+
 	#define WIN32_LEAN_AND_MEAN
 	#include <WinSock2.h>
 	#include <Windows.h>			//里面有WinSock1.h，不能放前面,否则要定义 WIN32_LEAN_AND_MEAN 宏
@@ -20,7 +22,7 @@ using namespace std;
 #include "CELLTimestamp.hpp"
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 1024*400		//接收缓冲区最小单元大小 40kb
+	#define RECV_BUFF_SIZE 1024*10		//接收缓冲区最小单元大小 40kb
 #endif
 				
 
@@ -187,7 +189,7 @@ public:
 			//新客户端加入，群发他的socket
 			NewUserJoin newUserJoin;
 			newUserJoin.sock = cSock;
-			SendData2All(&newUserJoin);
+			//SendData2All(&newUserJoin);
 
 			//int nSendBuf,nRecvBuf;
 			//int len = sizeof(int);
@@ -208,7 +210,7 @@ public:
 
 			//新客户端加入vector
 			_clients.push_back(new ClientSocket(cSock));
-			printf("socket = <%d>有新客户端加入：socket= %d, IP= %s \n",_sock, cSock, inet_ntoa(clientAddr.sin_addr));
+			printf("socket = <%d>有新客户端加入[%d]：socket= %d, IP= %s \n",_sock,_clients.size(), cSock, inet_ntoa(clientAddr.sin_addr));
 		}
 		return cSock;
 	}
@@ -307,7 +309,7 @@ public:
 		auto t1 = _tTime.getElapsedTimeInSecond();
 		if (t1 >= 1.0)
 		{
-			printf("time<%lf>,socket<%d>,recvCount<%d>,recvBytes<%d>\n",t1,cSock,_recvCount,_recvBytes);
+			printf("time<%lfs>,socketCount<%d>,recvCount<%d>,recvBytes<%d>\n",t1,_clients.size(),_recvCount,_recvBytes);
 			_recvCount = 0;
 			_recvBytes = 0;
 			_tTime.update();
@@ -326,7 +328,7 @@ public:
 				//回复客户端登陆结果
 				LoginResult ret;
 				//发送数据包（包头+包体）
-				SendData(cSock, &ret);
+				//SendData(cSock, &ret);
 			}
 			break;
 		case CMD_LOGOUT:
@@ -338,7 +340,7 @@ public:
 				//回复客户端登出结果
 				LogoutResult ret;
 				//发送包体（包头+包体）
-				SendData(cSock, &ret);
+				//SendData(cSock, &ret);
 			}
 			break;
 		default:

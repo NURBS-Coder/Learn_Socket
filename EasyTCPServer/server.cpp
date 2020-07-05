@@ -1,6 +1,5 @@
 #include "EasyTcpServer.hpp"
 #include <thread>					//c++标准线程库
-#include "CELLTimestamp.hpp"
 
 bool g_bRun = true;
 void cmdThread()

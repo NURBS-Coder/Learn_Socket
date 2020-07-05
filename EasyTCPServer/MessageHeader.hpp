@@ -37,7 +37,7 @@ struct Login: public DataHeader				//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔ
 	}
 	char userName[32];
 	char passWord[32];
-	char data[932];
+	//char data[932];
 	//char data_more[300000];
 };
 struct LoginResult: public DataHeader		//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔò²»Í¬Æ½Ì¨»áÓĞÎÊÌâ
@@ -49,7 +49,7 @@ struct LoginResult: public DataHeader		//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£
 		result=0;
 	}
 	int result;
-	char data[992];
+	//char data[992];
 	//char data_more[300000];
 };
 struct Logout: public DataHeader			//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔò²»Í¬Æ½Ì¨»áÓĞÎÊÌâ

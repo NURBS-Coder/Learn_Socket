@@ -16,9 +16,10 @@ using namespace std;
 #include <iostream>				//std::cout....
 
 #include "MessageHeader.hpp"
+#include "CELLTimestamp.hpp"
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 1024*400		//接收缓冲区最小单元大小 40kb
+	#define RECV_BUFF_SIZE 1024*10		//接收缓冲区最小单元大小 40kb
 #endif
 
 class EasyTcpClient
@@ -68,7 +69,7 @@ public:
 			printf("错误,建立socket失败...\n");
 			return -1;
 		}
-		printf("建立socket = <%d>成功...\n", _sock);
+		//printf("建立socket = <%d>成功...\n", _sock);
 		return 0;
 	}
 
@@ -80,7 +81,7 @@ public:
 			InitSocket();
 		}
 		// 2.连接服务器 connect
-		printf("socket = <%d>正在连接服务器<%s:%d>...\n", _sock, ip, port);
+		//printf("socket = <%d>正在连接服务器<%s:%d>...\n", _sock, ip, port);
 		sockaddr_in _sin = {};		
 		_sin.sin_family = AF_INET;	//IPV4
 		_sin.sin_port = htons(port);//host to net unsigned short
@@ -96,7 +97,7 @@ public:
 		}
 		else
 		{
-			printf("socket = <%d>连接服务器<%s:%d>成功...\n", _sock, ip, port);
+			//printf("socket = <%d>连接服务器<%s:%d>成功...\n", _sock, ip, port);
 		}
 
 		//int nSendBuf,nRecvBuf;
@@ -194,7 +195,7 @@ public:
 		case CMD_LOGIN_RESULT:
 			{
 				LoginResult* loginRet = (LoginResult*)header;		//子类结构体直接由基类转化
-				printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d\n", _sock, loginRet->dataLength);
+				//printf("socket = <%d>收到服务器消息：CMD_LOGIN_RESULT\t数据长度：%d\n", _sock, loginRet->dataLength);
 				//返回的登陆结果
 				//printf(" --> LoginResult：%d\n",loginRet->result);
 			}
