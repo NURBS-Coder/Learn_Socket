@@ -1,5 +1,5 @@
 #include "EasyTcpServer.hpp"
-#include <thread>					//c++标准线程库
+
 
 bool g_bRun = true;
 void cmdThread()
@@ -13,7 +13,7 @@ void cmdThread()
 		if (0 == strcmp(cmdBuf, "exit"))
 		{ 
 			g_bRun = false;
-			printf("退出cmdThread线程\n");
+			printf("退出cmdThread线程\n"); 
 			break;
 		}
 		else
@@ -29,6 +29,7 @@ int main()
 	//server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
+	server.Start(4);
 
 	//启动线程 发送thread
 	thread t1(cmdThread);

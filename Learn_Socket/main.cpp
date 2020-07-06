@@ -12,6 +12,7 @@ using namespace std;
 #include <mutex>		//锁
 #include <atomic>		//原子
 
+#include <algorithm>
 mutex m;
 const int tCount = 4;
 //int sum = 0;
@@ -19,13 +20,13 @@ atomic<int> sum = 0;
 void workFun(int index)
 {
 	
-	for (int i = 0; i < 200000 ; i++)
+	for (int i = 0; i < 4 ; i++)
 	{
 		//锁与解锁：尽可能少使用锁，会占用系统资源，不要频繁使用锁，加锁一定要解锁
-		//m.lock();	//临界区域--开始
-		//cout << "Hello," << index << "thread." << i <<endl;
+		m.lock();	//临界区域--开始
+		cout << "Hello," << index << "thread." << i <<endl;
 		//sum++;
-		//m.unlock();	//临界区域--结束
+		m.unlock();	//临界区域--结束
 
 		//自解锁：离开当前作用域就解锁
 		//lock_guard<mutex> lg(m);
@@ -57,11 +58,16 @@ int main()
 
 //----------Hello Thread-----------//
 	
-
 	//线程传参
 	//thread t(workFun, 4);
-	//t.detach();			//线程分离，与主线程并行运行
-	//t.join();				//线程运行完成后，返回主线程，但join()线程间是并行运行的
+	//t.detach();			
+	//线程分离，与主线程并行运行
+	//线程 detach 脱离主线程的绑定，主线程挂了，子线程不报错，子线程执行完自动退出。
+	//线程 detach以后，子线程会成为孤儿线程，线程之间将无法通信。
+
+	//t.join();		
+	//join 是让当前主线程等待所有的子线程执行完，才能退出。
+	//线程运行完成后，返回主线程，但join()线程间是并行运行的
 
 	//线程数组
 	thread ts[tCount];
@@ -78,11 +84,11 @@ int main()
 	}
 
 	cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
-	cout << tTime.getElapsedTimeInMicroSec() << "us" << endl; 
+	cout << tTime.getElapsedTimeInMicroSec() << "us" << endl;
 	cout << "Hello,main thread." << sum << endl;
 
 	sum=0;
-	tTime.update();
+	tTime.reset();
 	for (int i = 0; i < 800000; i++)
 	{
 		sum++;
@@ -91,6 +97,9 @@ int main()
     cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
 	cout << tTime.getElapsedTimeInMicroSec() << "us" << endl; 
 	cout << "Hello,main thread." << sum << endl;
+
+//----------Next -----------//
+	
 
 	getchar();
 	return 0;

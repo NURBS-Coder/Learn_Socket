@@ -44,9 +44,9 @@ void cmdThread(EasyTcpClient * client)
 }
 
 //发送线程数量
-const int tCount = 2;
+const int tCount = 4;
 //Socket客户端数量
-const int cCount =10;
+const int cCount =1000;
 //const int cCount =  FD_SETSIZE - 1 ;		//默认Windows下select网络模型只有FD_SETSIZE个Socket连接
 EasyTcpClient* client[cCount];
 
@@ -54,6 +54,8 @@ EasyTcpClient* client[cCount];
 void sendThread(int id)
 {
 	//4个线程 ID 1~4
+
+	printf("thread<%d>,Start\n", id);
 	int c = cCount / tCount;
 	int begin = c * (id-1);
 	int end = c * id;
@@ -62,8 +64,9 @@ void sendThread(int id)
 	{
 		client[i] = new EasyTcpClient();
 		client[i]->Connect("127.0.0.1",4567);
-		printf("Connect=%d\n", i);
 	}
+
+	printf("thread<%d>,Connect=<begin=%d,end=%d>\n", id ,begin ,end);
 
 	while (g_bRun)
 	{
@@ -73,15 +76,19 @@ void sendThread(int id)
 			strcpy(login.userName,"GK");
 			strcpy(login.passWord,"GKmm");
 			client[i]->SendData(&login);
+			client[i]->OnRun();
 		}
 
-		//Sleep(20);
+		//Sleep(50);
 	}
 
 	for (int i = begin; i < end; i++)
 	{
 		client[i]->Close();
+		delete client[i];
 	}
+
+	printf("thread<%d>,Exit\n", id);
 }
 
 int main()
