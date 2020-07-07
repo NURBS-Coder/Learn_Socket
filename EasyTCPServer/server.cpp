@@ -29,7 +29,7 @@ int main()
 	//server.InitSocket();
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
-	server.Start(4);
+	server.Start(1);
 
 	//启动线程 发送thread
 	thread t1(cmdThread);

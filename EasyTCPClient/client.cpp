@@ -1,6 +1,7 @@
 #include "EasyTcpClient.hpp"
 #include <thread>					//c++标准线程库
 
+
 bool g_bRun = true;
 void cmdThread(EasyTcpClient * client)
 {
@@ -44,12 +45,13 @@ void cmdThread(EasyTcpClient * client)
 }
 
 //发送线程数量
-const int tCount = 4;
+const int tCount =1;
 //Socket客户端数量
 const int cCount =1000;
 //const int cCount =  FD_SETSIZE - 1 ;		//默认Windows下select网络模型只有FD_SETSIZE个Socket连接
 EasyTcpClient* client[cCount];
-
+atomic<int> sendCount = 0;
+atomic<int> readyCount = 0;
 
 void sendThread(int id)
 {
@@ -68,15 +70,30 @@ void sendThread(int id)
 
 	printf("thread<%d>,Connect=<begin=%d,end=%d>\n", id ,begin ,end);
 
+	readyCount++;
+	while (readyCount < tCount)
+	{	//等待其他线程都连接完毕，才开始发数据
+		chrono::milliseconds t(10);
+		this_thread::sleep_for(t);
+	}
+
+	const int n = 10;
+	Login login[n];
+	for (int i = 0; i < n; i++)
+	{
+		strcpy(login[i].userName,"GK");
+		strcpy(login[i].passWord,"GKmm");
+	}
+			
+	int nlen = sizeof(login);
 	while (g_bRun)
 	{
 		for (int i = begin; i < end; i++)
 		{
-			Login login;
-			strcpy(login.userName,"GK");
-			strcpy(login.passWord,"GKmm");
-			client[i]->SendData(&login);
+			
+			client[i]->SendData(login, nlen);
 			client[i]->OnRun();
+			sendCount++;
 		}
 
 		//Sleep(50);
@@ -104,9 +121,24 @@ int main()
 		t.detach();
 	}
 
+	while (readyCount < tCount)
+	{	//等待其他线程都连接完毕，才开始发数据
+		chrono::milliseconds t(10);
+		this_thread::sleep_for(t);
+	}
+
+	CELLTimestamp timer;
 	while (g_bRun)
 	{
-		Sleep(1000);
+		auto t = timer.getElapsedTimeInSecond();
+		if (t >= 1.0)
+		{
+			printf("thread<%d>,time<%lfs>,clientCount<%d>,SendCount<%d>\n",tCount,t,cCount,sendCount);
+			timer.reset();
+			sendCount = 0;
+		}
+
+		Sleep(100);
 	}
 
 	printf("已退出，客户端任务结束。\n");

@@ -14,6 +14,7 @@
 
 using namespace std;
 #include <iostream>				//std::cout....
+#include <atomic>				//原子操作库
 
 #include "MessageHeader.hpp"
 #include "CELLTimestamp.hpp"
@@ -146,6 +147,14 @@ public:
 		}
 		return SOCKET_ERROR;
 	}
+	int SendData(DataHeader* header, int nlen)
+	{
+		if (isRun() && header)
+		{
+			return send(_sock, (const char*)header, nlen, 0);
+		}
+		return SOCKET_ERROR;
+	}
 
 	//接收数据 (处理粘包、拆包等)
 	int RecvData()
@@ -237,7 +246,7 @@ public:
 
 		//等待集合中有可操作Socket，非阻塞模式,timeval没有结果就返回，继续执行
 		//使得单线程也可以在无来自服务器的消息处理时，继续进行其他任务
-		timeval t = {1,0};	
+		timeval t = {0,10};	
 		int ret = select(0,&fdReads,0,0,&t);
 		if (ret < 0)
 		{

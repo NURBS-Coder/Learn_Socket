@@ -22,9 +22,14 @@ using namespace std;
 
 #include "MessageHeader.hpp"
 #include "CELLTimestamp.hpp"
+#include "CELLTask.hpp"
+
+#ifndef SEND_BUFF_SIZE
+	#define SEND_BUFF_SIZE 1024		//发送缓冲区最小单元大小 40kb
+#endif
 
 #ifndef RECV_BUFF_SIZE
-	#define RECV_BUFF_SIZE 1024*10		//接收缓冲区最小单元大小 40kb
+	#define RECV_BUFF_SIZE 1024		//接收缓冲区最小单元大小 40kb
 #endif
 				
 //客户端类型定义
@@ -36,6 +41,9 @@ public:
 		_sockfd = sockfd;
 		memset(_szMsgBuf,0,RECV_BUFF_SIZE * 5);
 		_lastPos = 0;
+
+		memset(_szSendBuf,0,SEND_BUFF_SIZE * 5);
+		_lastSendPos = 0;
 	}
 
 	SOCKET sockfd()
@@ -48,14 +56,29 @@ public:
 		return _szMsgBuf;
 	}
 
+	char* sendBuf()
+	{
+		return _szSendBuf;
+	}
+
 	int getLastPos()
 	{
 		return _lastPos;
 	}
 
+	int getLastSendPos()
+	{
+		return _lastSendPos;
+	}
+
 	void setLastPos(int pos)
 	{
 		_lastPos = pos;
+	}
+
+	void setLastSendPos(int pos)
+	{
+		_lastSendPos = pos;
 	}
 
 	//发送数据
@@ -66,17 +89,51 @@ public:
 			return -1;
 		}
 
-		if (header)
+		int ret = SOCKET_ERROR;
+		//定量发送数据，与接收相匹配,消息缓冲
+		int nSendLen = header->dataLength;					//发送数据的长度
+		const char *pSendData = (const char*)header;		//要发送的数据
+
+		while (true)
 		{
-			return send(_sockfd, (const char*)header, header->dataLength, 0);
+			if (_lastSendPos + nSendLen >= SEND_BUFF_SIZE)
+			{
+				//计算发送缓冲区中还有的空间
+				int nCopyLen = SEND_BUFF_SIZE - _lastSendPos;
+				//拷贝数据
+				memcpy(_szSendBuf+_lastSendPos, pSendData, nCopyLen);
+				//移动到还未拷贝的待发送的数据位置
+				pSendData += nCopyLen;
+				//计算还未拷贝的数据大小
+				nSendLen -= nCopyLen;
+				//将发送缓冲区数据发出去
+				ret = send(_sockfd, _szSendBuf, SEND_BUFF_SIZE, 0);
+				//缓冲区数据位置置零
+				_lastSendPos = 0;
+				if (SOCKET_ERROR == ret)
+				{
+					return ret;
+				}
+			}
+			else
+			{
+				//将剩下的数据拷入缓冲区
+				memcpy(_szSendBuf+_lastSendPos, pSendData, nSendLen);
+				_lastSendPos += nSendLen;
+				ret = 1;
+				break;
+			}
 		}
-		return SOCKET_ERROR;
+		return ret;
 	}
 
 private:
 	SOCKET _sockfd;							//客户端socket
-	char _szMsgBuf[RECV_BUFF_SIZE * 5];	//第二缓冲区、消息缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE * 5];		//第二缓冲区、消息缓冲区
 	int _lastPos;							//记录第二缓冲区中数据位置
+
+	char _szSendBuf[RECV_BUFF_SIZE * 5];		//第二缓冲区、发送缓冲区
+	int _lastSendPos;							//记录第二缓冲区中数据位置
 
 };
 
@@ -94,8 +151,34 @@ public:
 	virtual void OnNetLeave(ClientSocket* pClient) = 0; 
 	//响应网络接口事件,4线程调用
 	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header) = 0; 
+	//响应网络接口事件,4线程调用
+	virtual void OnNetRecv(ClientSocket* pClient) = 0; 
 private:
 
+};
+
+//网络消息发送任务
+class CellSendMsg2ClientTask  : public CellTask
+{
+public:
+	CellSendMsg2ClientTask(ClientSocket *pClient, DataHeader *pHeader)
+	{
+		m_pClient = pClient;
+		m_pHeader = pHeader;
+	}
+
+	~CellSendMsg2ClientTask(){}
+
+	//执行任务
+	virtual void DoTask()
+	{
+		m_pClient->SendData(m_pHeader);
+		delete m_pHeader;
+	}
+
+private:
+	ClientSocket *m_pClient;
+	DataHeader *m_pHeader;
 };
 
 class CellServer
@@ -109,6 +192,8 @@ private:
 	thread _thread;						//消费者处理线程
 	mutex _mutex;						//缓冲队列的锁
 	INetEvent *_pNetEvent;				//网络事件对象
+
+	CellTaskServer m_taskServer;		//
 
 	bool _bIsRun;
 
@@ -139,6 +224,13 @@ public:
 		_pNetEvent = pNetEvent;
 	}
 
+	//添加发送任务
+	void addSendTask(ClientSocket *pClient, DataHeader *pHeader)
+	{
+		CellSendMsg2ClientTask *pCellTask = new CellSendMsg2ClientTask(pClient,pHeader);
+		m_taskServer.AddTask(pCellTask);
+	}
+
 	//往缓冲队列增加客户端
 	void addClientToBuff(ClientSocket * pClient)
 	{
@@ -164,6 +256,8 @@ public:
 		//当在使用一些需要可调用对象的函数时。如std::fot_each，就需要进行成员函数到函数对象的转换
 		
 		_thread.detach();  //不detach也不join，线程也可以运行？？？？
+
+		m_taskServer.Start();
 	}
 
 	//查询当前用户数量
@@ -212,8 +306,13 @@ public:
 	}
 		
 	//处理网络消息
+	//feset备份，用于直接赋值
+	fd_set _fdRead_bak;
+	//客户列表是否变化
+	bool _clients_change;
 	bool OnRun()
 	{
+		_clients_change = true;
 		_bIsRun = true;
 		while (_bIsRun)
 		{
@@ -226,6 +325,7 @@ public:
 					_clients.push_back(pClient);
 				}
 				_clientsBuff.clear();
+				_clients_change = true;
 			}
 
 			//没有客户端就跳过
@@ -245,16 +345,26 @@ public:
 			//FD_ZERO(&fdWrite);
 			//FD_ZERO(&fdExcept);
 
-			for (size_t i = 0; i < _clients.size(); i++)	//每次循环都要算一遍_clients.size()用于判断，慢
+			if (_clients_change)
 			{
-				//将客户端socket加入可读集合
-				FD_SET(_clients[i]->sockfd(), &fdRead);
+				for (size_t i = 0; i < _clients.size(); i++)	//每次循环都要算一遍_clients.size()用于判断，慢
+				{
+					//将客户端socket加入可读集合
+					FD_SET(_clients[i]->sockfd(), &fdRead);
+				}
+				memcpy(&_fdRead_bak,&fdRead,sizeof(fd_set));
+				_clients_change = false;
 			}
+			else
+			{
+				memcpy(&fdRead,&_fdRead_bak,sizeof(fd_set));
+			}
+			
 
 			//等待集合中有可操作Socket，非阻塞模式,timeval没有结果就返回，继续执行
 			//使得单线程也可以在无客户端消息处理时，继续进行其他任务
 			//timeval t = {1,0};	
-			int ret = select(0,&fdRead,nullptr,nullptr, nullptr/*&t*/);
+			int ret = select(0,&fdRead,nullptr,nullptr, nullptr/*&t*/);  //查询后，fdset内的数据会改变，只有有消息的socket在里面
 			if (ret < 0)
 			{
 				printf("select任务结束。\n");
@@ -278,9 +388,9 @@ public:
 							{
 								_pNetEvent->OnNetLeave(_clients[n]);
 							}
-
 							delete _clients[n];
 							_clients.erase(iter);
+							_clients_change = true;
 
 						}
 					}
@@ -299,6 +409,7 @@ public:
 	{
 		//接收包头
 		int nLen = recv(pClient->sockfd(), _szRecv, RECV_BUFF_SIZE, 0);
+		_pNetEvent->OnNetRecv(pClient);
 		
 		if (nLen <= 0)
 		{
@@ -355,10 +466,10 @@ public:
 				//忽略判断用户名和密码
 				//printf(" --> 登陆：UserName=%s,PassWord=%s\n",login->userName,login->passWord);
 				//回复客户端登陆结果
-				LoginResult ret;
+				LoginResult *ret = new LoginResult();
 				//发送数据包（包头+包体）
-				pClient->SendData(&ret);
-				//SendData(pClient->sockfd(), &ret);
+				//pClient->SendData(&ret);
+				addSendTask(pClient, ret);
 			}
 			break;
 		case CMD_LOGOUT:
@@ -407,7 +518,8 @@ private:
 	//vector<ClientSocket*> _clients;			//客户端队列【该线程存这个没什么用,改进】
 
 	CELLTimestamp _tTime;					//计时工具对象
-	atomic_int _recvCount;					//消息包计数
+	atomic_int _recvCount;					//recv计数
+	atomic_int _msgCount;					//消息包计数
 	atomic_int _recvBytes;					//数据字节数计数
 	atomic_int _clientCount;				//客户计数
 
@@ -417,6 +529,7 @@ public:
 	{
 		_sock = INVALID_SOCKET;
 		_recvCount = 0;
+		_msgCount = 0;
 		_recvBytes = 0;
 		_clientCount = 0;
 
@@ -452,10 +565,13 @@ public:
 	//网络消息统计处理函数
 	virtual void OnNetMsg(ClientSocket* pClient, DataHeader* header)
 	{
-
-		_recvCount++;
+		_msgCount++;
 		_recvBytes += header->dataLength;
-	
+	}
+
+	virtual void OnNetRecv(ClientSocket* pClient)
+	{
+		_recvCount++;
 	}
 
 	//主监听线程定时读取所有子线程的数据进行统计并输出的函数【不用了，现在用网络接口类，子线程直接更新主监听线程的数据】
@@ -473,9 +589,10 @@ public:
 	//			recvBytes += ser->_recvBytes;
 	//			ser->_recvBytes = 0;
 	//		}
-			printf("thread<%d>,time<%lfs>,socketCount<%d>,recvCount<%d>,recvBytes<%d>\n",_cellServers.size(),t1,_clientCount/*_clients.size()*/,_recvCount,_recvBytes);
+			printf("Ts<%d>,time<%lfs>,Ss<%d>,Rs<%d>,Ms<%d>,RBs<%d>\n",_cellServers.size(),t1,_clientCount/*_clients.size()*/,_recvCount,_msgCount,_recvBytes);
 			_tTime.reset();
 			_recvCount = 0;
+			_msgCount = 0;
 			_recvBytes = 0;
 
 			//int i = 0;
