@@ -150,6 +150,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\res\MyTools\CELLTimestamp.hpp" />
+    <ClInclude Include="..\res\MyTools\MemoryMgr.hpp" />
+    <ClInclude Include="..\res\MyTools\ObjectMgr.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

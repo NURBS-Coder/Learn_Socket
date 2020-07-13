@@ -47,7 +47,7 @@ void cmdThread(EasyTcpClient * client)
 //发送线程数量
 const int tCount =1;
 //Socket客户端数量
-const int cCount =1000;
+const int cCount =100;
 //const int cCount =  FD_SETSIZE - 1 ;		//默认Windows下select网络模型只有FD_SETSIZE个Socket连接
 EasyTcpClient* client[cCount];
 atomic<int> sendCount = 0;

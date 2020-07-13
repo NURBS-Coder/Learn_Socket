@@ -1,5 +1,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include "CELLTimestamp.hpp"
+#include "MemoryMgr.hpp"
+#include "ObjectMgr.hpp"
 
 #include <WinSock2.h>
 #include <Windows.h>			//里面有WinSock1.h，不能放前面,否则要定义宏
@@ -11,15 +13,60 @@ using namespace std;
 #include <thread>		//c++11 线程
 #include <mutex>		//锁
 #include <atomic>		//原子
+#include <memory>		//内存相关：智能指针
 
-#include <algorithm>
+#include <algorithm>	//算法
+
+//应用对象池实例
+class ClassA : public ObjectPoolBase<ClassA, 5>
+{
+public:
+	ClassA()
+	{
+		num = 0;
+		printf("ClassA\n");
+	}
+
+	~ClassA()
+	{
+		printf("~ClassA\n");
+	}
+
+	int num;
+private:
+
+};
+
+class ClassB : public ObjectPoolBase<ClassB, 5>
+{
+public:
+	ClassB()
+	{
+		num = 0;
+		printf("ClassB\n");
+	}
+
+	~ClassB()
+	{
+		printf("~ClassB\n");
+	}
+
+	int num;
+private:
+
+};
+
 mutex m;
-const int tCount = 4;
 //int sum = 0;
 atomic<int> sum = 0;
+
+const int tCount = 4;		//线程数
+const int mCount = 8;		//总数
+const int nCount = mCount / tCount;	//每个线程的数
 void workFun(int index)
 {
-	
+//----------多线程锁测试-----------//
+/*
 	for (int i = 0; i < 4 ; i++)
 	{
 		//锁与解锁：尽可能少使用锁，会占用系统资源，不要频繁使用锁，加锁一定要解锁
@@ -35,6 +82,39 @@ void workFun(int index)
 		//原子操作:自带锁，防止被其他线程误操作
 		sum++;
 	}
+*/
+
+
+//----------多线程内存池测试-----------//
+/*
+	char *data[nCount];
+	for (size_t i = 0; i < nCount; i++)
+	{
+		data[i] = new char[1+i];
+	
+	}
+
+	for (size_t i = 0; i < nCount; i++)
+	{
+		delete[] data[i];
+	}
+//*/
+
+//----------多线程对象池测试-----------//
+///*
+	ClassA *data[nCount];
+	for (size_t i = 0; i < nCount; i++)
+	{
+		data[i] = ClassA::CreatObject();
+	
+	}
+
+	for (size_t i = 0; i < nCount; i++)
+	{
+		ClassA::DestroyObject(data[i]);
+	}
+//*/
+
 }
 //抢占式占用系统资源,多线程使用cout资源，会输出错乱，需要对资源进行保护
 //使用锁、自解锁
@@ -43,21 +123,25 @@ void workFun(int index)
 //如果我们要访问的共享资源可以用原子数据类型表示，那么在多线程程序中使用这种新的等价数据类型，是一个不错的选择。
 
 
+
+
 int main()
 {
+
 //----------Hello WinSocket-----------//
+/*
+	WORD ver = MAKEWORD(2,2);	//创建版本号
+	WSADATA dat;
+	WSAStartup(ver, &dat);		//加载socket相关动态链接库
+	//---------------------
 
-	//WORD ver = MAKEWORD(2,2);	//创建版本号
-	//WSADATA dat;
-	//WSAStartup(ver, &dat);		//加载socket相关动态链接库
-	////---------------------
 
-
-	////清除Windows socket环境
-	//WSACleanup();
+	//清除Windows socket环境
+	WSACleanup();
+*/
 
 //----------Hello Thread-----------//
-	
+/*	
 	//线程传参
 	//thread t(workFun, 4);
 	//t.detach();			
@@ -70,36 +154,133 @@ int main()
 	//线程运行完成后，返回主线程，但join()线程间是并行运行的
 
 	//线程数组
+	//thread ts[tCount];
+	//for (int i = 0; i < tCount; i++)
+	//{
+	//	ts[i] = thread(workFun, i);
+	//}
+
+	//CELLTimestamp tTime;
+
+	//for (int i = 0; i < tCount; i++)
+	//{
+	//	ts[i].join();		//join()线程间是并行运行的,都完成后才继续主线程
+	//}
+
+	//cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
+	//cout << tTime.getElapsedTimeInMicroSec() << "us" << endl;
+	//cout << "Hello,main thread." << sum << endl;
+
+	//sum=0;
+	//tTime.reset();
+	//for (int i = 0; i < 800000; i++)
+	//{
+	//	sum++;
+	//}
+	//
+ //   cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
+	//cout << tTime.getElapsedTimeInMicroSec() << "us" << endl; 
+	//cout << "Hello,main thread." << sum << endl;
+
+*/
+
+//----------内存管理-----------//
+/*
+	////申请数组
+	//char *data1 = new char[128];
+	//delete[] data1;
+	////申请变量
+	//char *data2 = new char;
+ //   delete data2;
+	////函数申请
+	//char *data3 = (char*)mem_alloc(64);
+	//mem_free(data3);
+
+	//char* data[260];
+	//for (int i = 0; i < 260; i++)
+	//{
+	//	data[i] = new char[1+i];
+	//	if (0 != i)
+	//	{
+	//		//printf("Previous - Current = %d\n",data[i] - data[i-1]);
+	//	}
+	//}
+
+	//for (int i = 0; i < 260; i++)
+	//{
+	//	delete[] data[i];
+	//	//printf("%lx\n",data[i]);
+	//}
+
+	//内存池多线程测试
 	thread ts[tCount];
 	for (int i = 0; i < tCount; i++)
 	{
 		ts[i] = thread(workFun, i);
+		ts[i].detach();
 	}
+//*/
 
-	CELLTimestamp tTime;
+//----------智能指针-----------//
+/*
+	//int *a = new int;
+	//*a = 100;
+	//printf("a=%d\n", *a);
+	//delete a;
+	////c++标准库中智能指针的一种
+	//shared_ptr<int> b = make_shared<int>();
+	//*b = 100;
+	//printf("b=%d\n", *b);
 
+	//ClassA *Aa = new ClassA;
+	//Aa->num = 100;
+	//delete Aa;
+	////智能指针创建类指针，自动delete
+	//shared_ptr<ClassA> bb = make_shared<ClassA>();
+	//bb->num = 100;				//指向使用和普通类指针类似，指向ClassA的成员变量与函数
+	//ClassA *Aa2 = bb.get();		//.操作符使用智能指针类的成员变量与函数，get()获取ClassA的原始指针
+	//int number = bb.use_count();	//智能指针引用次数。为0就释放
+	//ClassA aa;
+*/
+
+//----------对象池-----------//
+///*
+	//ClassA *Aa = new ClassA;
+	//Aa->num = 100;
+	//delete Aa;
+
+	//ClassA *Aa1 = ClassA::CreatObject();
+	//Aa1->num = 100;
+	//ClassA::DestroyObject(Aa1);
+
+	//ClassB *Bb = new ClassB;
+	//Bb->num = 100;
+	//delete Bb;
+
+	//ClassB *Bb1 = ClassB::CreatObject();
+	//Bb1->num = 100;
+	//ClassB::DestroyObject(Bb1);
+
+	//对象池多线程测试
+	thread ts[tCount];
 	for (int i = 0; i < tCount; i++)
 	{
-		ts[i].join();		//join()线程间是并行运行的,都完成后才继续主线程
+		ts[i] = thread(workFun, i);
+		ts[i].detach();
 	}
 
-	cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
-	cout << tTime.getElapsedTimeInMicroSec() << "us" << endl;
-	cout << "Hello,main thread." << sum << endl;
+	//智能指针与对象池
+	//printf("---------------1---------------\n");
+	//{	//正常使用智能指针，不会调用类重载的new，不会使用对象池
+	//	shared_ptr<ClassA> s0 = make_shared<ClassA>();
+	//}
+	//printf("---------------2---------------\n");
+	//{	//显式调用重载的new运算符，使对象池生效
+	//	shared_ptr<ClassA> s1(new ClassA());;
+	//}
 
-	sum=0;
-	tTime.reset();
-	for (int i = 0; i < 800000; i++)
-	{
-		sum++;
-	}
-	
-    cout << tTime.getElapsedTimeInMilliSec() << "ms" <<endl; 
-	cout << tTime.getElapsedTimeInMicroSec() << "us" << endl; 
-	cout << "Hello,main thread." << sum << endl;
+//*/
 
-//----------Next -----------//
-	
 
 	getchar();
 	return 0;

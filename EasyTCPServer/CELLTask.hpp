@@ -4,6 +4,11 @@
 #include <thread>
 #include <mutex>
 #include <list>
+#include <memory>
+
+class CellTask;
+
+typedef std::shared_ptr<CellTask>  CellTaskPtr;
 
 //任务基类
 class CellTask
@@ -31,7 +36,7 @@ public:
 	~CellTaskServer(){}
 
 	//添加任务
-	void AddTask(CellTask *task)
+	void AddTask(CellTaskPtr& task)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_tasksBuf.push_back(task);
@@ -74,7 +79,6 @@ public:
 			while (iter != m_tasks.end())
 			{
 				(*iter)->DoTask();
-				delete *iter;
 				iter = m_tasks.erase(iter);
 			}
 
@@ -82,9 +86,9 @@ public:
 	}
 private:
 	//任务数据
-	std::list<CellTask*> m_tasks;
+	std::list<CellTaskPtr> m_tasks;
 	//任务数据缓冲区
-	std::list<CellTask*> m_tasksBuf;
+	std::list<CellTaskPtr> m_tasksBuf;
 	//锁,用于对临界数据【数据缓冲区】进行操作
 	std::mutex m_mutex;
 };
