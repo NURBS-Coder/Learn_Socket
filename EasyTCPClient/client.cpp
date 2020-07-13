@@ -53,6 +53,20 @@ EasyTcpClient* client[cCount];
 atomic<int> sendCount = 0;
 atomic<int> readyCount = 0;
 
+//接收线程
+void recvThread(int begin, int end)
+{
+	while (g_bRun)
+	{
+		for (int i = begin; i < end; i++)
+		{
+			client[i]->OnRun();
+		}
+
+		//Sleep(50);
+	}
+}
+
 void sendThread(int id)
 {
 	//4个线程 ID 1~4
@@ -77,6 +91,10 @@ void sendThread(int id)
 		this_thread::sleep_for(t);
 	}
 
+	//启动接收线程
+	thread t(recvThread, begin, end);
+	t.detach();
+
 	const int n = 10;
 	Login login[n];
 	for (int i = 0; i < n; i++)
@@ -92,11 +110,11 @@ void sendThread(int id)
 		{
 			
 			client[i]->SendData(login, nlen);
-			client[i]->OnRun();
 			sendCount++;
 		}
-
-		//Sleep(50);
+		//发送延迟
+		chrono::milliseconds t(10);
+		this_thread::sleep_for(t);
 	}
 
 	for (int i = begin; i < end; i++)
@@ -107,6 +125,8 @@ void sendThread(int id)
 
 	printf("thread<%d>,Exit\n", id);
 }
+
+
 
 int main()
 {

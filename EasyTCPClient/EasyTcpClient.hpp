@@ -28,14 +28,14 @@ class EasyTcpClient
 private:
 	SOCKET _sock;							//服务器socket
 	char _szRecv[RECV_BUFF_SIZE];			//接收缓冲区
-	char _szMsgBuf[RECV_BUFF_SIZE * 5];	//第二缓冲区、消息缓冲区
+	char _szMsgBuf[RECV_BUFF_SIZE];	//第二缓冲区、消息缓冲区
 	int _lastPos;							//记录第二缓冲区中数据位置
 public:
 	EasyTcpClient()
 	{
 		_sock = INVALID_SOCKET;
 		memset(_szRecv,0,RECV_BUFF_SIZE);
-		memset(_szMsgBuf,0,RECV_BUFF_SIZE * 5);
+		memset(_szMsgBuf,0,RECV_BUFF_SIZE);
 		_lastPos = 0;
 	}
 
