@@ -1,14 +1,7 @@
 #ifndef _CELL_TASK_HPP_
 #define _CELL_TASK_HPP_
 
-#include <thread>
-#include <mutex>
-#include <list>
-#include <memory>
-
-class CellTask;
-
-typedef std::shared_ptr<CellTask>  CellTaskPtr;
+#include "CellClient.hpp"
 
 //任务基类
 class CellTask
@@ -26,6 +19,8 @@ public:
 private:
 
 };
+
+typedef std::shared_ptr<CellTask>  CellTaskPtr;
 
 //执行任务的服务类型
 class CellTaskServer
@@ -92,5 +87,32 @@ private:
 	//锁,用于对临界数据【数据缓冲区】进行操作
 	std::mutex m_mutex;
 };
+
+
+//网络消息发送任务
+class CellSendMsg2ClientTask  : public CellTask
+{
+public:
+	CellSendMsg2ClientTask(CellClientPtr& pClient, DataHeader *pHeader)
+	{
+		m_pClient = pClient;
+		m_pHeader = pHeader;
+	}
+
+	~CellSendMsg2ClientTask(){}
+
+	//执行任务
+	virtual void DoTask()
+	{
+		m_pClient->SendData(m_pHeader);
+		delete m_pHeader;
+	}
+
+private:
+	CellClientPtr m_pClient;
+	DataHeader *m_pHeader;
+};
+
+typedef std::shared_ptr<CellSendMsg2ClientTask>  CellSendMsg2ClientTaskPtr;
 
 #endif //!_CELL_TASK_HPP_

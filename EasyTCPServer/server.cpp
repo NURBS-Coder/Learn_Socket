@@ -32,7 +32,7 @@ int main()
 	server.Start(1);
 
 	//启动线程 发送thread
-	thread t1(cmdThread);
+	std::thread t1(cmdThread);
 	t1.detach();	//分离线程
 	
 	while (g_bRun)

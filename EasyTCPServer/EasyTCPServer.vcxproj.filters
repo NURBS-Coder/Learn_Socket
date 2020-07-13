@@ -26,7 +26,19 @@
     <ClInclude Include="MessageHeader.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="CELLTask.hpp">
+    <ClInclude Include="CellClient.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CellHeader.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CellServer.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="INetEvent.hpp">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="CellTask.hpp">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
