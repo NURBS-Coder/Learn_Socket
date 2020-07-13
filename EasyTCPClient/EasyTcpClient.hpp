@@ -26,6 +26,8 @@ using namespace std;
 atomic<int> sendCount = 0;				//发送计数
 atomic<int> recvCount = 0;				//接收计数
 atomic<int> msgCount = 0;				//消息计数
+atomic<int> connectCount = 0;				//连接计数
+
 class EasyTcpClient	
 {
 private:
@@ -101,6 +103,7 @@ public:
 		}
 		else
 		{
+			connectCount++;
 			//printf("socket = <%d>连接服务器<%s:%d>成功...\n", _sock, ip, port);
 		}
 
@@ -132,6 +135,7 @@ public:
 #ifdef _WIN32
 			// 7.关闭套接字 closesocket
 			closesocket(_sock);
+			connectCount--;
 			//关闭WinSock2.x网络环境
 			WSACleanup();
 #else
@@ -154,6 +158,7 @@ public:
 	{
 		if (isRun() && header)
 		{
+			sendCount++;
 			return send(_sock, (const char*)header, nlen, 0);
 		}
 		return SOCKET_ERROR;
@@ -231,9 +236,14 @@ public:
 				printf(" --> NewUserJoin：<newSocket = %d>\n",newUserJoinRet->sock);
 			}
 			break;
+		case CMD_HEART_S2C:
+			{	//重置心跳计数
+				//printf("socket = <%d>收到服务器的心跳数据...\n",_sock);
+			}
+			break;
 		default:
 			{
-				printf("socket = <%d>收到未定义消息\t数据长度：%d", _sock, header->dataLength);
+				printf("socket = <%d>收到未定义消息\t数据长度：%d\n", _sock, header->dataLength);
 			}
 		}
 	}

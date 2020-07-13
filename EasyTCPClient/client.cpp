@@ -95,22 +95,15 @@ void sendThread(int id)
 	thread t(recvThread, begin, end);
 	t.detach();
 
-	const int n = 1;
-	Login login[n];
-	for (int i = 0; i < n; i++)
-	{
-		strcpy(login[i].userName,"GK");
-		strcpy(login[i].passWord,"GKmm");
-	}
+	const int n = 10;
+	Heart_C2S login[n];
 			
 	int nlen = sizeof(login);
 	while (g_bRun)
 	{
 		for (int i = begin; i < end; i++)
 		{
-			
 			client[i]->SendData(login, nlen);
-			sendCount++;
 		}
 		//·¢ËÍÑÓ³Ù
 		chrono::milliseconds t(1000);
@@ -153,7 +146,7 @@ int main()
 		auto t = timer.getElapsedTimeInSecond();
 		if (t >= 1.0)
 		{
-			printf("Ts<%d>,time<%lfs>,Ss<%d>,Rs<%d>,Ms<%d>\n",tCount ,t,sendCount,recvCount,msgCount);
+			printf("Ts<%d>,time<%lfs>,Cs<%d>,Ss<%d>,Rs<%d>,Ms<%d>\n",tCount ,t,connectCount,sendCount,recvCount,msgCount);
 			timer.reset();
 			sendCount = 0;
 			recvCount = 0;

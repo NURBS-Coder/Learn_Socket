@@ -15,6 +15,9 @@ public:
 
 		memset(_szSendBuf,0,SEND_BUFF_SIZE * 5);
 		_lastSendPos = 0;
+
+		m_dtHeart = 0;
+		m_dtSend = 0;
 	}
 
 	SOCKET sockfd()
@@ -51,6 +54,22 @@ public:
 	{
 		_lastSendPos = pos;
 	}
+	
+	//立即发送数据
+	int SendDataReal()
+	{
+		int ret = SOCKET_ERROR;
+		if (_lastSendPos > 0)
+		{
+			//将发送缓冲区数据发出去
+			ret = send(_sockfd, _szSendBuf, _lastSendPos, 0);
+			//缓冲区数据位置置零
+			_lastSendPos = 0;
+			//重置时间
+			resetDTSend();
+		}
+		return ret;
+	}
 
 	//发送数据
 	int SendData(DataHeader* header)
@@ -81,6 +100,8 @@ public:
 				ret = send(_sockfd, _szSendBuf, SEND_BUFF_SIZE, 0);
 				//缓冲区数据位置置零
 				_lastSendPos = 0;
+				//重置时间
+				resetDTSend();
 				if (SOCKET_ERROR == ret)
 				{
 					return ret;
@@ -98,6 +119,44 @@ public:
 		return ret;
 	}
 
+	void resetDTHeart()
+	{
+		m_dtHeart = 0;
+	}
+
+	void resetDTSend()
+	{
+		m_dtSend = 0;
+	}
+
+	//心跳检测
+	bool checkHeart(time_t dt)
+	{
+		m_dtHeart += dt;
+		if (m_dtHeart >= 5000)		//5s的心跳死亡时间
+		{
+			printf("checkHeart dead:s=%d\n", _sockfd);
+			return false;
+		}
+		//printf("检测<%d>的心跳，time=%d.....\n",_sockfd, m_dtHeart);
+		return true;
+	}
+
+	//发送检测：清空发送缓冲区，将数据发送出去
+	bool checkSend(time_t dt)
+	{
+		m_dtSend += dt;
+		if (m_dtSend >= 1000)		//500ms的发送极限时间
+		{
+			SendDataReal();
+
+			//printf("<%d>checkSend,Succeed....\n", _sockfd);
+			return false;
+		}
+		//printf("检测<%d>的心跳，time=%d.....\n",_sockfd, m_dtHeart);
+		return true;
+	}
+
 private:
 	SOCKET _sockfd;							//客户端socket
 	char _szMsgBuf[RECV_BUFF_SIZE * 5];		//第二缓冲区、消息缓冲区
@@ -105,6 +164,9 @@ private:
 
 	char _szSendBuf[RECV_BUFF_SIZE * 5];		//第二缓冲区、发送缓冲区
 	int _lastSendPos;							//记录第二缓冲区中数据位置
+
+	time_t m_dtHeart;						//心跳计时
+	time_t m_dtSend;						//发送计时
 
 };
 

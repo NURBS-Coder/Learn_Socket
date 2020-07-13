@@ -14,7 +14,9 @@ enum CMD
 	CMD_LOGIN_RESULT,
 	CMD_LOGOUT,			//µÇ³ö
 	CMD_LOGOUT_RESULT,
-	CMD_NEW_USER_JOIN	//ĞÂÓÃ»§½øÈë
+	CMD_NEW_USER_JOIN,	//ĞÂÓÃ»§½øÈë
+	CMD_HEART_C2S,
+	CMD_HEART_S2C
 };
 //°üÍ·
 struct DataHeader							//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔò²»Í¬Æ½Ì¨»áÓĞÎÊÌâ
@@ -80,6 +82,24 @@ struct NewUserJoin: public DataHeader		//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£
 		sock = 0;
 	}
 	int sock;
+};
+
+struct Heart_C2S: public DataHeader		//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔò²»Í¬Æ½Ì¨»áÓĞÎÊÌâ
+{
+	Heart_C2S()		//¼Ì³ĞÊı¾İÍ·£¬²¢³õÊ¼»¯
+	{
+		cmd = CMD_HEART_C2S;
+		dataLength = sizeof(Heart_C2S);
+	}
+};
+
+struct Heart_S2C: public DataHeader		//¸Ã·½·¨£¬±ØĞë±£Ö¤×Ö½ÚĞòÒ»ÖÂ£¨¶ş½øÖÆÁ÷£©£¬·ñÔò²»Í¬Æ½Ì¨»áÓĞÎÊÌâ
+{
+	Heart_S2C()		//¼Ì³ĞÊı¾İÍ·£¬²¢³õÊ¼»¯
+	{
+		cmd = CMD_HEART_S2C;
+		dataLength = sizeof(Heart_S2C);
+	}
 };
 
 #endif  //_MessageHeader_hpp_

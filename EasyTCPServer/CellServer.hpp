@@ -16,7 +16,9 @@ private:
 	std::mutex _mutex;						//缓冲队列的锁
 	INetEvent *_pNetEvent;				//网络事件对象
 
-	CellTaskServer m_taskServer;		//
+	CellTaskServer m_taskServer;		//任务执行线程
+
+	CELLTimestamp m_time;
 
 	bool _bIsRun;
 
@@ -144,6 +146,8 @@ public:
 		_bIsRun = true;
 		while (_bIsRun)
 		{
+			
+
 			//从缓冲队列添加到正式队列
 			if (_clientsBuff.size() > 0)	//访问size没有加锁
 			{
@@ -160,6 +164,7 @@ public:
 			if (_clients.empty()){		//C++11 的跨平台休眠
 				std::chrono::milliseconds t(1);
 				std::this_thread::sleep_for(t);
+				m_time.reset();
 				continue;
 			}
 
@@ -191,8 +196,8 @@ public:
 
 			//等待集合中有可操作Socket，非阻塞模式,timeval没有结果就返回，继续执行
 			//使得单线程也可以在无客户端消息处理时，继续进行其他任务
-			//timeval t = {1,0};	
-			int ret = select(0,&fdRead,nullptr,nullptr, nullptr/*&t*/);  //查询后，fdset内的数据会改变，只有有消息的socket在里面
+			timeval t = {0,1};	
+			int ret = select(0,&fdRead,nullptr,nullptr, /*nullptr*/&t);  //查询后，fdset内的数据会改变，只有有消息的socket在里面
 			if (ret < 0)
 			{
 				printf("select任务结束。\n");
@@ -216,6 +221,7 @@ public:
 							{
 								_pNetEvent->OnNetLeave(_clients[n]);
 							}
+							closesocket((*iter)->sockfd());
 							_clients.erase(iter);
 							_clients_change = true;
 
@@ -223,6 +229,31 @@ public:
 					}
 				}
 			}
+
+			//心跳检测
+			auto time = m_time.elapsed();
+			for (auto iter = _clients.begin(); iter != _clients.end();)
+			{
+				//定时发送数据
+				(*iter)->checkSend(time);
+				//心跳检测
+				if (!(*iter)->checkHeart(time))
+				{
+					//客户端退出，删除Socket
+					if (_pNetEvent)
+					{
+						_pNetEvent->OnNetLeave(*iter);
+					}
+					closesocket((*iter)->sockfd());
+					iter = _clients.erase(iter);
+					_clients_change = true;
+				}
+				else
+				{
+					++iter;
+				}
+			}
+			m_time.reset();
 
 			//空闲时间处理其他业务
 			//printf("空闲时间处理其他业务。。。\n");
@@ -309,6 +340,14 @@ public:
 				LogoutResult ret;
 				//发送包体（包头+包体）
 				//SendData(cSock, &ret);
+			}
+			break;
+		case CMD_HEART_C2S:
+			{	//重置心跳计数
+				pClient->resetDTHeart();
+				Heart_S2C *ret = new Heart_S2C();
+				addSendTask(pClient, ret);
+				//printf("收到<%d>的心跳数据，time=%d,已经重置...\n",pClient->sockfd(), pClient->m_dtHeart);
 			}
 			break;
 		default:

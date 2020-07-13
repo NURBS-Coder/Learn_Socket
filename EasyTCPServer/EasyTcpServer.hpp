@@ -85,7 +85,7 @@ public:
 	//			recvBytes += ser->_recvBytes;
 	//			ser->_recvBytes = 0;
 	//		}
-			printf("Ts<%d>,time<%lfs>,Ss<%d>,Rs<%d>,Ms<%d>,RBs<%d>\n",_cellServers.size(),t1,_clientCount/*_clients.size()*/,_recvCount,_msgCount,_recvBytes);
+			printf("Ts<%d>,time<%lfs>,Cs<%d>,Rs<%d>,Ms<%d>,RBs<%d>\n",_cellServers.size(),t1,_clientCount/*_clients.size()*/,_recvCount,_msgCount,_recvBytes);
 			_tTime.reset();
 			_recvCount = 0;
 			_msgCount = 0;
