@@ -17,6 +17,8 @@ using namespace std;
 
 #include <algorithm>	//算法
 
+#include <functional>	//匿名函数、函数指针
+
 //应用对象池实例
 class ClassA : public ObjectPoolBase<ClassA, 5>
 {
@@ -122,7 +124,11 @@ void workFun(int index)
 //原子操作的实现跟普通数据类型类似，但是它能够在保证结果正确的前提下，提供比mutex等锁机制更好的性能
 //如果我们要访问的共享资源可以用原子数据类型表示，那么在多线程程序中使用这种新的等价数据类型，是一个不错的选择。
 
-
+int funA(int a, int b)
+{
+	printf("funA\n");
+	return 0;
+}
 
 
 int main()
@@ -244,7 +250,7 @@ int main()
 */
 
 //----------对象池-----------//
-///*
+/*
 	//ClassA *Aa = new ClassA;
 	//Aa->num = 100;
 	//delete Aa;
@@ -281,6 +287,45 @@ int main()
 
 //*/
 
+//----------function-----------//
+///*
+	//定义一个变量call 是int型的有两个参数的函数，指向funA，可以用call调用funA
+	std::function< int(int, int) > call = funA;	
+	int a = call(1, 2);
+
+	//匿名函数，lambda表达式
+	std::function< int(int) > call_1;	
+
+	/*
+	lambda表达式
+	[ capture ] ( params ) opt -> ret { body; }
+	[ 外部变量捕获列表 ] ( 参数列表 ) 特殊操作符 -> 返回值类型 { 函数体 }
+	
+	捕获列表; 精细控制了表达式能够访问的外部变量，以及如何访问这些变量
+	1）	[]：不捕获任何变量
+	2）	[&]：捕获外部作用域中所有变量，并作为引用在函数体中调用（按引用捕获）
+	3）	[=]：捕获外部作用域中所有变量，并作为副本在函数体中调用（按值捕获）
+	4）	[=, &foo]：捕获外部作用域中所有变量，并按引用捕获foo变量
+	5）	[bar]：只捕获bar变量，多个变量用，隔开
+	6）	[this]：捕获当前类中的this指针，让lambda表达式拥有和当前类成员函数相同的访问权限，如果适用&或=，默认包含此选项
+
+	特殊操作符
+	mutable：lambda表达式内部代码可以修改被捕获变量
+	exception：lambda表达式是否抛出异常以及何种异常
+	attribute：声明属性
+
+	*/
+
+	call_1 = [a /*外部变量捕获列表*/](/*参数列表*/int b) -> int //返回值类型
+	{
+		//函数体
+		printf("%d\n", a+b);
+		return 2;
+	};
+
+	int c = call_1(2);
+	printf("%d\n", c);
+//*/
 
 	getchar();
 	return 0;

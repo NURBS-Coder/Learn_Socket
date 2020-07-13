@@ -50,8 +50,14 @@ public:
 	//添加发送任务
 	void addSendTask(CellClientPtr &pClient, DataHeader *pHeader)
 	{
-		CellSendMsg2ClientTaskPtr pCellTask = std::make_shared<CellSendMsg2ClientTask>(pClient,pHeader);
-		m_taskServer.AddTask((CellTaskPtr)pCellTask);
+		//CellSendMsg2ClientTaskPtr pCellTask = std::make_shared<CellSendMsg2ClientTask>(pClient,pHeader);
+		//m_taskServer.AddTask((CellTaskPtr)pCellTask);
+
+		//lambda表达式
+		m_taskServer.AddTask([pClient, pHeader](){
+			pClient->SendData(pHeader);
+			delete pHeader;
+		});
 	}
 
 	//往缓冲队列增加客户端

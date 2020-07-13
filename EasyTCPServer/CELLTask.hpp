@@ -3,35 +3,38 @@
 
 #include "CellClient.hpp"
 
-//任务基类
-class CellTask
-{
-public:
-	CellTask(){}
-	//虚析构函数
-	virtual ~CellTask(){}
-	//执行任务
-	virtual void DoTask()
-	{
-		
-	}
+#include <functional>
 
-private:
+//任务基类 --> 用lambda表达式升级
+//class CellTask
+//{
+//public:
+//	CellTask(){}
+//	//虚析构函数
+//	virtual ~CellTask(){}
+//	//执行任务
+//	virtual void DoTask()
+//	{
+//		
+//	}
+//
+//private:
+//
+//};
 
-};
-
-typedef std::shared_ptr<CellTask>  CellTaskPtr;
+//typedef std::shared_ptr<CellTask>  CellTaskPtr;
 
 //执行任务的服务类型
 class CellTaskServer
 {
+	typedef std::function<void()> CellTask;		//一个函数变量
 public:
 	CellTaskServer(){}
 
 	~CellTaskServer(){}
 
 	//添加任务
-	void AddTask(CellTaskPtr& task)
+	void AddTask(CellTask task)
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_tasksBuf.push_back(task);
@@ -73,7 +76,7 @@ public:
 			auto iter = m_tasks.begin();
 			while (iter != m_tasks.end())
 			{
-				(*iter)->DoTask();
+				(*iter)();
 				iter = m_tasks.erase(iter);
 			}
 
@@ -81,38 +84,38 @@ public:
 	}
 private:
 	//任务数据
-	std::list<CellTaskPtr> m_tasks;
+	std::list<CellTask> m_tasks;
 	//任务数据缓冲区
-	std::list<CellTaskPtr> m_tasksBuf;
+	std::list<CellTask> m_tasksBuf;
 	//锁,用于对临界数据【数据缓冲区】进行操作
 	std::mutex m_mutex;
 };
 
 
-//网络消息发送任务
-class CellSendMsg2ClientTask  : public CellTask
-{
-public:
-	CellSendMsg2ClientTask(CellClientPtr& pClient, DataHeader *pHeader)
-	{
-		m_pClient = pClient;
-		m_pHeader = pHeader;
-	}
-
-	~CellSendMsg2ClientTask(){}
-
-	//执行任务
-	virtual void DoTask()
-	{
-		m_pClient->SendData(m_pHeader);
-		delete m_pHeader;
-	}
-
-private:
-	CellClientPtr m_pClient;
-	DataHeader *m_pHeader;
-};
-
-typedef std::shared_ptr<CellSendMsg2ClientTask>  CellSendMsg2ClientTaskPtr;
+//网络消息发送任务 --> 用lambda表达式升级,就不需要了
+//class CellSendMsg2ClientTask  : public CellTask
+//{
+//public:
+//	CellSendMsg2ClientTask(CellClientPtr& pClient, DataHeader *pHeader)
+//	{
+//		m_pClient = pClient;
+//		m_pHeader = pHeader;
+//	}
+//
+//	~CellSendMsg2ClientTask(){}
+//
+//	//执行任务
+//	virtual void DoTask()
+//	{
+//		m_pClient->SendData(m_pHeader);
+//		delete m_pHeader;
+//	}
+//
+//private:
+//	CellClientPtr m_pClient;
+//	DataHeader *m_pHeader;
+//};
+//
+//typedef std::shared_ptr<CellSendMsg2ClientTask>  CellSendMsg2ClientTaskPtr;
 
 #endif //!_CELL_TASK_HPP_

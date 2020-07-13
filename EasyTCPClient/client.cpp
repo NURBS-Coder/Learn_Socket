@@ -47,10 +47,10 @@ void cmdThread(EasyTcpClient * client)
 //发送线程数量
 const int tCount =1;
 //Socket客户端数量
-const int cCount =100;
+const int cCount =10;
 //const int cCount =  FD_SETSIZE - 1 ;		//默认Windows下select网络模型只有FD_SETSIZE个Socket连接
 EasyTcpClient* client[cCount];
-atomic<int> sendCount = 0;
+
 atomic<int> readyCount = 0;
 
 //接收线程
@@ -95,7 +95,7 @@ void sendThread(int id)
 	thread t(recvThread, begin, end);
 	t.detach();
 
-	const int n = 10;
+	const int n = 1;
 	Login login[n];
 	for (int i = 0; i < n; i++)
 	{
@@ -113,7 +113,7 @@ void sendThread(int id)
 			sendCount++;
 		}
 		//发送延迟
-		chrono::milliseconds t(10);
+		chrono::milliseconds t(1000);
 		this_thread::sleep_for(t);
 	}
 
@@ -153,9 +153,11 @@ int main()
 		auto t = timer.getElapsedTimeInSecond();
 		if (t >= 1.0)
 		{
-			printf("thread<%d>,time<%lfs>,clientCount<%d>,SendCount<%d>\n",tCount,t,cCount,sendCount);
+			printf("Ts<%d>,time<%lfs>,Ss<%d>,Rs<%d>,Ms<%d>\n",tCount ,t,sendCount,recvCount,msgCount);
 			timer.reset();
 			sendCount = 0;
+			recvCount = 0;
+			msgCount = 0;
 		}
 
 		Sleep(100);

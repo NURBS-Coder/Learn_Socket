@@ -23,7 +23,10 @@ using namespace std;
 	#define RECV_BUFF_SIZE 1024*10		//接收缓冲区最小单元大小 40kb
 #endif
 
-class EasyTcpClient
+atomic<int> sendCount = 0;				//发送计数
+atomic<int> recvCount = 0;				//接收计数
+atomic<int> msgCount = 0;				//消息计数
+class EasyTcpClient	
 {
 private:
 	SOCKET _sock;							//服务器socket
@@ -162,6 +165,8 @@ public:
 		// 6.recv 接收服务器返回的数据
 		//接收数据
 		int nLen = recv(_sock, _szRecv, RECV_BUFF_SIZE, 0);
+		recvCount++;
+
 		if (nLen <= 0)
 		{
 			printf("socket = <%d>与服务器断开连接，任务结束。\n",_sock);
@@ -199,6 +204,7 @@ public:
 	//响应网络消息
 	void OnNetMsg(DataHeader* header)
 	{
+		msgCount++;
 		switch (header->cmd)
 		{
 		case CMD_LOGIN_RESULT:
