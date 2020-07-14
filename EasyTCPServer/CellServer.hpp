@@ -9,36 +9,25 @@ class CellServer
 private:
 	std::vector<CellClientPtr> _clients;		//动态数组：存客户端socket,用指针，在堆内存，防止栈内存不够
 	std::vector<CellClientPtr> _clientsBuff;	//客户缓冲队列
-	char _szRecv[RECV_BUFF_SIZE];		//接收缓冲区
+	char _szRecv[RECV_BUFF_SIZE];				//接收缓冲区
 	
-	std::thread _thread;				//消费者处理线程
-	std::mutex _mutex;					//缓冲队列的锁
-	INetEvent *_pNetEvent;				//网络事件对象
-
-	CellTaskServer m_taskServer;		//任务执行线程
-
-	CELLTimestamp m_time;				//定时时间戳
-
+	std::mutex _mutex;							//缓冲队列的锁
+	INetEvent *_pNetEvent;						//网络事件对象
+	CellTaskServer m_taskServer;				//任务执行线程
+	CELLTimestamp m_time;						//定时时间戳
+	CellThread m_thread;						//消费者处理线程
+	fd_set _fdRead_bak;							//feset备份，用于直接赋值
+	bool _clients_change;						//客户列表是否变化
 	int m_id;
-	bool m_isRun;
-	CellSemaphore m_sem;
-
-public:
-	//atomic_int _recvCount;
-	//atomic_int _recvBytes;
 
 public:
 	CellServer(int id)
 	{
 		m_id = id;
-		m_isRun = false;
 		_pNetEvent = nullptr;
 		memset(_szRecv,0,RECV_BUFF_SIZE);
 
 		m_taskServer.m_id = m_id;
-
-		//_recvCount = 0;
-		//_recvBytes = 0;
 	}
 
 	~CellServer()
@@ -54,9 +43,6 @@ public:
 	//添加发送任务
 	void addSendTask(CellClientPtr &pClient, DataHeader *pHeader)
 	{
-		//CellSendMsg2ClientTaskPtr pCellTask = std::make_shared<CellSendMsg2ClientTask>(pClient,pHeader);
-		//m_taskServer.AddTask((CellTaskPtr)pCellTask);
-
 		//lambda表达式
 		m_taskServer.AddTask([pClient, pHeader](){
 			pClient->SendData(pHeader);
@@ -68,29 +54,13 @@ public:
 	void addClientToBuff(CellClientPtr& pClient)
 	{
 		std::lock_guard<std::mutex> lock(_mutex); //使用自解锁，防止添加失败退出而没有解锁
-		//_mutex.lock();
 		_clientsBuff.push_back(pClient);
-		//_mutex.unlock();
 	}
 
 	//启动该消费者线程
 	void Start()
 	{
-		m_isRun = true;
-		_thread = std::thread(std::mem_fn(&CellServer::OnRun), this);
-		//很多C++的高手和牛人们都会给我们一个忠告，那就是：在处理STL里面的容器的时候，尽量不要自己写循环。
-		//原因：【STL里面的容器都有自己的遍历器，而且STL提供了for_each等函数】
-		//效率：算法通常比程序员产生的循环更高效。 
-		//正确性：写循环时比调用算法更容易产生错误。
-		//可维护性：算法通常使代码比相应的显式循环更干净、更直观。
-
-		//函数适配器std::mem_fun,std::mem_fun_ref,std::mem_fn()
-		//mem_fun将成员函数转换为函数对象(指针版本)。指针版本指的是通过指向对象的指针调用对象的情况。std::mem_fun_ref是对应的引用版本。
-		//成员函数指针与普通函数指针不同，它必须绑定到特定的对象上才能使用，所以成员函数指针不是一个可调用对象。
-		//当在使用一些需要可调用对象的函数时。如std::fot_each，就需要进行成员函数到函数对象的转换
-		
-		_thread.detach();  //不detach也不join，线程也可以运行？？？？
-
+		m_thread.Start(nullptr, [this](CellThread& pThread){OnRun(pThread);});
 		m_taskServer.Start();
 	}
 
@@ -98,16 +68,14 @@ public:
 	void Close()
 	{
 		printf("2、CellServer<%d>.Close	Start...\n", m_id);
-		if (m_isRun)
-		{
-			m_taskServer.Close();
-			m_isRun = false;
-			m_sem.Wait();
 
-			//清空客户端，析构时就关闭客户端socket
-			_clients.clear();
-			_clientsBuff.clear();
-		}
+		m_taskServer.Close();
+		m_thread.Close();
+
+		//清空客户端，析构时就关闭客户端socket
+		_clients.clear();
+		_clientsBuff.clear();
+
 		printf("2、CellServer<%d>.Close	End...\n", m_id);
 	}
 
@@ -116,26 +84,12 @@ public:
 	{
 		return _clients.size() + _clientsBuff.size();
 	}
-
-	//发送数据（所有用户）		// 多线程这样广播不合理
-	//void SendData2All(DataHeader* header)
-	//{
-	//	for (size_t i = 0; i < _clients.size(); i++)	//每次循环都要算一遍_clients.size()用于判断，慢
-	//	{
-	//		//发送包体（包头+包体）
-	//		SendData(_clients[i]->sockfd(), header);
-	//	}
-	//}
 		
 	//处理网络消息
-	//feset备份，用于直接赋值
-	fd_set _fdRead_bak;
-	//客户列表是否变化
-	bool _clients_change;
-	bool OnRun()
+	void OnRun(CellThread& pThread)
 	{
 		_clients_change = true;
-		while (m_isRun)
+		while (pThread.IsRun())
 		{
 			//从缓冲队列添加到正式队列
 			if (_clientsBuff.size() > 0)	//访问size没有加锁
@@ -190,9 +144,9 @@ public:
 			int ret = select(0,&fdRead,nullptr,nullptr, /*nullptr*/&t);  //查询后，fdset内的数据会改变，只有有消息的socket在里面
 			if (ret < 0)
 			{
-				printf("select任务结束。\n");
-				Close();
-				return false;
+				printf("CellServer<%d>.OnRun.Select任务结束。\n", m_id);
+				pThread.Exit();
+				break;
 			}
 		
 			//处理有可读消息的客户端socket
@@ -247,8 +201,6 @@ public:
 			//printf("空闲时间处理其他业务。。。\n");
 		}
 		printf("2、CellServer<%d>.OnRun  Close...\n", m_id);
-		m_sem.WakeUp();
-		return true;
 	}
 
 	//接收数据 (处理粘包、拆包等)
