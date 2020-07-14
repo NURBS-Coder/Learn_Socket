@@ -7,36 +7,38 @@
 class CellServer
 {
 private:
-	SOCKET _sock;						//服务器socket	
 	std::vector<CellClientPtr> _clients;		//动态数组：存客户端socket,用指针，在堆内存，防止栈内存不够
 	std::vector<CellClientPtr> _clientsBuff;	//客户缓冲队列
 	char _szRecv[RECV_BUFF_SIZE];		//接收缓冲区
 	
-	std::thread _thread;						//消费者处理线程
-	std::mutex _mutex;						//缓冲队列的锁
+	std::thread _thread;				//消费者处理线程
+	std::mutex _mutex;					//缓冲队列的锁
 	INetEvent *_pNetEvent;				//网络事件对象
 
 	CellTaskServer m_taskServer;		//任务执行线程
 
-	CELLTimestamp m_time;
+	CELLTimestamp m_time;				//定时时间戳
 
-	bool _bIsRun;
+	int m_id;
+	bool m_isRun;
+	CellSemaphore m_sem;
 
 public:
 	//atomic_int _recvCount;
 	//atomic_int _recvBytes;
 
 public:
-	CellServer(SOCKET sock = INVALID_SOCKET)
+	CellServer(int id)
 	{
-		_sock = sock;
+		m_id = id;
+		m_isRun = false;
 		_pNetEvent = nullptr;
 		memset(_szRecv,0,RECV_BUFF_SIZE);
 
+		m_taskServer.m_id = m_id;
+
 		//_recvCount = 0;
 		//_recvBytes = 0;
-		
-		_bIsRun = false;
 	}
 
 	~CellServer()
@@ -74,6 +76,7 @@ public:
 	//启动该消费者线程
 	void Start()
 	{
+		m_isRun = true;
 		_thread = std::thread(std::mem_fn(&CellServer::OnRun), this);
 		//很多C++的高手和牛人们都会给我们一个忠告，那就是：在处理STL里面的容器的时候，尽量不要自己写循环。
 		//原因：【STL里面的容器都有自己的遍历器，而且STL提供了for_each等函数】
@@ -91,6 +94,23 @@ public:
 		m_taskServer.Start();
 	}
 
+	//关闭该消费者线程
+	void Close()
+	{
+		printf("2、CellServer<%d>.Close	Start...\n", m_id);
+		if (m_isRun)
+		{
+			m_taskServer.Close();
+			m_isRun = false;
+			m_sem.Wait();
+
+			//清空客户端，析构时就关闭客户端socket
+			_clients.clear();
+			_clientsBuff.clear();
+		}
+		printf("2、CellServer<%d>.Close	End...\n", m_id);
+	}
+
 	//查询当前用户数量
 	size_t getClientCount()
 	{
@@ -106,34 +126,6 @@ public:
 	//		SendData(_clients[i]->sockfd(), header);
 	//	}
 	//}
-
-	//是否工作中
-	bool isRun()
-	{
-		return INVALID_SOCKET != _sock;
-	}
-
-	//关闭Socekt
-	void Close()
-	{
-		if (_sock != INVALID_SOCKET)
-		{
-#ifdef _WIN32
-			//关闭线程
-			_bIsRun = false;
-			//关闭套接字 closesocket
-			for (int n = (int)_clients.size() - 1 ; n >= 0; n--)		//循环只调用一次_clients.size()，快
-			{															//但size_t是无符号数，不能--，size_t的值为0的时候，再继续自减就会大于0
-				closesocket(_clients[n]->sockfd());
-			}
-			
-#else
-
-#endif
-			_clients.clear();
-			_clientsBuff.clear();
-		}
-	}
 		
 	//处理网络消息
 	//feset备份，用于直接赋值
@@ -143,17 +135,15 @@ public:
 	bool OnRun()
 	{
 		_clients_change = true;
-		_bIsRun = true;
-		while (_bIsRun)
+		while (m_isRun)
 		{
-			
-
 			//从缓冲队列添加到正式队列
 			if (_clientsBuff.size() > 0)	//访问size没有加锁
 			{
 				std::lock_guard<std::mutex> lock(_mutex);
 				for (auto pClient : _clientsBuff)
 				{
+					pClient->m_serverID = m_id;
 					_clients.push_back(pClient);
 				}
 				_clientsBuff.clear();
@@ -221,7 +211,6 @@ public:
 							{
 								_pNetEvent->OnNetLeave(_clients[n]);
 							}
-							closesocket((*iter)->sockfd());
 							_clients.erase(iter);
 							_clients_change = true;
 
@@ -244,7 +233,6 @@ public:
 					{
 						_pNetEvent->OnNetLeave(*iter);
 					}
-					closesocket((*iter)->sockfd());
 					iter = _clients.erase(iter);
 					_clients_change = true;
 				}
@@ -258,7 +246,8 @@ public:
 			//空闲时间处理其他业务
 			//printf("空闲时间处理其他业务。。。\n");
 		}
-		printf("退出一个消费者处理线程....\n");
+		printf("2、CellServer<%d>.OnRun  Close...\n", m_id);
+		m_sem.WakeUp();
 		return true;
 	}
 
@@ -355,7 +344,7 @@ public:
 				//发送包头
 				//DataHeader ret;
 				//SendData(cSock, &ret);
-				printf("socket = <%d>收到未定义消息\t数据长度：%d", _sock, header->dataLength);
+				printf("socket = <%d>收到未定义消息\t数据长度：%d", pClient->sockfd(), header->dataLength);
 			}
 			break;
 		}

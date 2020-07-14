@@ -9,7 +9,6 @@ class EasyTcpServer : public INetEvent
 private:
 	SOCKET _sock;							//服务器socket	
 	std::vector<CellServerPtr> _cellServers;		//消费者线程
-	//vector<CellClientPtr> _clients;			//客户端队列【该线程存这个没什么用,改进】
 
 	CELLTimestamp _tTime;					//计时工具对象
 	std::atomic_int _recvCount;					//recv计数
@@ -31,8 +30,6 @@ public:
 	virtual ~EasyTcpServer()
 	{
 		Close();
-		//释放CellServer
-		//............
 	}
 
 	//客户端加入消息处理函数
@@ -102,6 +99,7 @@ public:
 	//关闭Socekt
 	void Close()
 	{
+		printf("1、EasyTCPServer.Close	Start...\n");
 		if (_sock != INVALID_SOCKET)
 		{
 #ifdef _WIN32
@@ -119,6 +117,7 @@ public:
 #endif
 			_sock = INVALID_SOCKET;
 		}
+		printf("1、EasyTCPServer.Close	End...\n");
 	}
 
 	//初始化Socket
@@ -212,7 +211,7 @@ public:
 
 		for (int i = 0; i < nCellServer; i++)
 		{
-			auto ser = std::make_shared<CellServer>(_sock);
+			auto ser = std::make_shared<CellServer>(i + 1);
 			_cellServers.push_back(ser);
 			ser->setEventObj(this);		//注册网络消息事件接受对象
 			ser->Start();				//启动

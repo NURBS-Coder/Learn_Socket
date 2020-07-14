@@ -5,6 +5,8 @@
 
 #include <functional>
 
+#include "CellSemaphore.hpp"
+
 //任务基类 --> 用lambda表达式升级
 //class CellTask
 //{
@@ -29,7 +31,9 @@ class CellTaskServer
 {
 	typedef std::function<void()> CellTask;		//一个函数变量
 public:
-	CellTaskServer(){}
+	CellTaskServer(){
+		m_isRun = false;
+	}
 
 	~CellTaskServer(){}
 
@@ -44,14 +48,27 @@ public:
 	void Start()
 	{
 		//线程
+		m_isRun = true;
 		std::thread thread(std::mem_fn(&CellTaskServer::OnRun), this);
 		thread.detach();
+	}
+
+	//关闭服务
+	void Close()
+	{
+		printf("3、TaskServer<%d>.Close	Start...\n", m_id);
+		if (m_isRun)
+		{
+			m_isRun = false;	
+			m_sem.Wait();
+		}
+		printf("3、TaskServer<%d>.Close	End...\n", m_id);
 	}
 
 	//工作函数
 	void OnRun()
 	{
-		while (true)
+		while (m_isRun)
 		{
 			//添加任务到任务列表
 			if (!m_tasksBuf.empty())
@@ -81,6 +98,8 @@ public:
 			}
 
 		}
+		printf("3、TaskServer<%d>.OnRun  Close...\n", m_id);
+		m_sem.WakeUp();
 	}
 private:
 	//任务数据
@@ -89,6 +108,11 @@ private:
 	std::list<CellTask> m_tasksBuf;
 	//锁,用于对临界数据【数据缓冲区】进行操作
 	std::mutex m_mutex;
+
+public:
+	int m_id;
+	bool m_isRun;
+	CellSemaphore m_sem;
 };
 
 

@@ -7,6 +7,9 @@
 class CellClient
 {
 public:
+	int m_id;
+	int m_serverID;
+public:
 	CellClient(SOCKET sockfd = INVALID_SOCKET)
 	{
 		_sockfd = sockfd;
@@ -18,6 +21,20 @@ public:
 
 		m_dtHeart = 0;
 		m_dtSend = 0;
+
+		static int n = 1;
+		m_id = n++;
+		m_serverID = 0;
+	}
+
+	~CellClient()
+	{
+		printf("4¡¢CellClient[%d]<%d>.Close...\n",m_serverID, m_id);
+		if (_sockfd != INVALID_SOCKET)
+		{
+			closesocket(_sockfd);
+		}
+		_sockfd = INVALID_SOCKET;	
 	}
 
 	SOCKET sockfd()
