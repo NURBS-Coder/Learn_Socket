@@ -32,6 +32,7 @@ class CellTaskServer
 	typedef std::function<void()> CellTask;		//一个函数变量
 public:
 	CellTaskServer(){
+
 	}
 
 	~CellTaskServer(){}
@@ -89,8 +90,14 @@ public:
 				(*iter)();
 				iter = m_tasks.erase(iter);
 			}
-
 		}
+
+		//处理缓冲队列中的任务
+		for (auto pTask : m_tasksBuf)
+		{
+			pTask();
+		}
+
 		printf("3、TaskServer<%d>.OnRun  Close...\n", m_id);
 	}
 private:
@@ -102,9 +109,8 @@ private:
 	std::mutex m_mutex;
 
 public:
-	int m_id;
-	
 	CellThread m_thread;
+	int m_id;
 };
 
 

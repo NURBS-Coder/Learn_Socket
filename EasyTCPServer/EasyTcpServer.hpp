@@ -2,6 +2,7 @@
 #define _EasyTcpServer_hpp_
 
 #include "CellServer.hpp"
+#include "CellLog.hpp"
 
 //new -> 堆内存    int等定义 -> 栈内存（小，只有几M）
 class EasyTcpServer : public INetEvent
@@ -58,7 +59,7 @@ public:
 	//关闭Socekt
 	void Close()
 	{
-		printf("1、EasyTCPServer.Close	Start...\n");
+		CellLog::Instance().Info("1、EasyTCPServer.Close	Start...\n");
 		if (_sock != INVALID_SOCKET)
 		{
 			m_thread.Close();
@@ -69,26 +70,17 @@ public:
 			}
 
 			closesocket(_sock);
-			//---------------------
-			//清除Windows socket环境
-			WSACleanup();
 #else
 
 #endif
 			_sock = INVALID_SOCKET;
 		}
-		printf("1、EasyTCPServer.Close	End...\n");
+		CellLog::Instance().Info("1、EasyTCPServer.Close	End...\n");
 	}
 
 	//初始化Socket
 	SOCKET InitSocket()
 	{
-#ifdef _WIN32
-		//启动WinSock2.x网络环境
-		WORD ver = MAKEWORD(2,2);	//创建版本号
-		WSADATA dat;
-		WSAStartup(ver, &dat);		//加载socket相关动态链接库
-#endif
 		//---------------------
 		//-- 用Socket API建立简易TCP服务器
 		if (_sock != INVALID_SOCKET)
