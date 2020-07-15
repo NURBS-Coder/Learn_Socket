@@ -2,6 +2,7 @@
 #include "CELLTimestamp.hpp"
 #include "MemoryMgr.hpp"
 #include "ObjectMgr.hpp"
+#include "CellStream.hpp"
 
 #include <WinSock2.h>
 #include <Windows.h>			//里面有WinSock1.h，不能放前面,否则要定义宏
@@ -103,7 +104,7 @@ void workFun(int index)
 //*/
 
 //----------多线程对象池测试-----------//
-///*
+/*
 	ClassA *data[nCount];
 	for (size_t i = 0; i < nCount; i++)
 	{
@@ -288,7 +289,7 @@ int main()
 //*/
 
 //----------function-----------//
-///*
+/*
 	//定义一个变量call 是int型的有两个参数的函数，指向funA，可以用call调用funA
 	std::function< int(int, int) > call = funA;	
 	int a = call(1, 2);
@@ -296,27 +297,24 @@ int main()
 	//匿名函数，lambda表达式
 	std::function< int(int) > call_1;	
 
-	/*
-	lambda表达式
-	[ capture ] ( params ) opt -> ret { body; }
-	[ 外部变量捕获列表 ] ( 参数列表 ) 特殊操作符 -> 返回值类型 { 函数体 }
-	
-	捕获列表; 精细控制了表达式能够访问的外部变量，以及如何访问这些变量
-	1）	[]：不捕获任何变量
-	2）	[&]：捕获外部作用域中所有变量，并作为引用在函数体中调用（按引用捕获）
-	3）	[=]：捕获外部作用域中所有变量，并作为副本在函数体中调用（按值捕获）
-	4）	[=, &foo]：捕获外部作用域中所有变量，并按引用捕获foo变量
-	5）	[bar]：只捕获bar变量，多个变量用，隔开
-	6）	[this]：捕获当前类中的this指针，让lambda表达式拥有和当前类成员函数相同的访问权限，如果适用&或=，默认包含此选项
+	//lambda表达式
+	//[ capture ] ( params ) opt -> ret { body; }
+	//[ 外部变量捕获列表 ] ( 参数列表 ) 特殊操作符 -> 返回值类型 { 函数体 }
+	//
+	//捕获列表; 精细控制了表达式能够访问的外部变量，以及如何访问这些变量
+	//1）	[]：不捕获任何变量
+	//2）	[&]：捕获外部作用域中所有变量，并作为引用在函数体中调用（按引用捕获）
+	//3）	[=]：捕获外部作用域中所有变量，并作为副本在函数体中调用（按值捕获）
+	//4）	[=, &foo]：捕获外部作用域中所有变量，并按引用捕获foo变量
+	//5）	[bar]：只捕获bar变量，多个变量用，隔开
+	//6）	[this]：捕获当前类中的this指针，让lambda表达式拥有和当前类成员函数相同的访问权限，如果适用&或=，默认包含此选项
 
-	特殊操作符
-	mutable：lambda表达式内部代码可以修改被捕获变量
-	exception：lambda表达式是否抛出异常以及何种异常
-	attribute：声明属性
+	//特殊操作符
+	//mutable：lambda表达式内部代码可以修改被捕获变量
+	//exception：lambda表达式是否抛出异常以及何种异常
+	//attribute：声明属性
 
-	*/
-
-	call_1 = [a /*外部变量捕获列表*/](/*参数列表*/int b) -> int //返回值类型
+	call_1 = [a ](int b) -> int //返回值类型
 	{
 		//函数体
 		printf("%d\n", a+b);
@@ -325,8 +323,46 @@ int main()
 
 	int c = call_1(2);
 	printf("%d\n", c);
+
 //*/
 
+//----------字节流-----------//
+/*
+	//CellStream byteStream;
+	//byteStream.WriteInt8(1);
+	//byteStream.WriteInt16(2);
+	//byteStream.WriteInt32(3);
+	//byteStream.WriteFloat(4.5);
+	//byteStream.WriteDouble(6.7);
+	//char * str = "hehehe";
+	//byteStream.WriteArray(str, strlen(str));
+	//char a[] = "hahaha";
+	//byteStream.WriteArray(a, strlen(a));
+	//int b[] = {1, 2, 3, 4};
+	//byteStream.WriteArray(b, 4);
+
+	//auto n1 = byteStream.ReadInt8();
+	//auto n2 = byteStream.ReadInt16();
+	//auto n3 = byteStream.ReadInt32();
+	//auto n4 = byteStream.ReadFloat();
+	//auto n5 = byteStream.ReadDouble();
+
+	//uint32_t n = 0;
+	//char name[32] = {};
+	//n = byteStream.ReadArraySize();
+	//auto n6 = byteStream.ReadArray(name , 5);
+	//if (0 == n6)
+	//{
+	//	auto n6_1 = byteStream.ReadArray(name , 32);
+	//}
+	//char pw[32] = {};
+	//n = byteStream.ReadArraySize();
+	//auto n7 = byteStream.ReadArray(pw , 32);
+	//int data[32] = {};
+	//n = byteStream.ReadArraySize();
+	//auto n8 = byteStream.ReadArray(data , 32);
+
+//*/
 	getchar();
 	return 0;
 }

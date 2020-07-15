@@ -19,6 +19,7 @@ private:
 	{
 		m_logFile = nullptr;
 		m_Task.Start();
+		m_Task.m_id = -1;
 	}
 	~CellLog()
 	{

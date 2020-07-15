@@ -5,7 +5,6 @@
 int main()
 {
 	CellLog::Instance().SetLogPath("serverLog.txt", "w");
-
 	CellNetWork::Instance();
 	
 
@@ -14,12 +13,6 @@ int main()
 	server.Bind(nullptr, 4567);
 	server.Listen(5);
 	server.Start(1);
-
-	EasyTcpServer server1;
-	//server.InitSocket();
-	server1.Bind(nullptr, 5555);
-	server1.Listen(5);
-	server1.Start(1);
 
 	while (true)
 	{
@@ -30,7 +23,6 @@ int main()
 		if (0 == strcmp(cmdBuf, "exit"))
 		{ 
 			server.Close();
-			server1.Close();
 			printf("ÍË³öcmdThreadÏß³Ì\n"); 
 			break;
 		}

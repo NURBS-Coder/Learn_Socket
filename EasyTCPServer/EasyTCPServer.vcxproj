@@ -149,6 +149,7 @@
     <ClCompile Include="server.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\res\MyTools\MessageHeader.hpp" />
     <ClInclude Include="CellClient.hpp" />
     <ClInclude Include="CellHeader.hpp" />
     <ClInclude Include="CellLog.hpp" />
@@ -159,7 +160,6 @@
     <ClInclude Include="CellThread.hpp" />
     <ClInclude Include="EasyTcpServer.hpp" />
     <ClInclude Include="INetEvent.hpp" />
-    <ClInclude Include="MessageHeader.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
